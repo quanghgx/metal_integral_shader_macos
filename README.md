@@ -7,7 +7,9 @@ Based on christopherhelf work https://github.com/christopherhelf/IntegralImage-i
 
 # Test result
 `[MTLDevice.description] name = Intel(R) SKL Unknown`
+
 `Theoretical FPS 720p: 120.722·`
+
 `Theoretical FPS 1080p: 91.2149·`
 
 # References:
