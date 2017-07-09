@@ -20,7 +20,7 @@ class TestClass {
         library = device.makeDefaultLibrary()!;
         commandQueue = device.makeCommandQueue()
 
-        print("[test-class] init")
+        print("[test-class] init \(device.description)")
     }
 
     func testSmallTextureSum() -> Bool {
