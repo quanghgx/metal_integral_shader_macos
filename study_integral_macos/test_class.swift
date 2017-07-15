@@ -23,6 +23,86 @@ class TestClass {
         print("[test-class] init \(device.description)")
     }
 
+    func test_square(){
+        let width: Int = 4
+        let height: Int = 3
+
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: MTLPixelFormat.r32Float,
+            width: width,
+            height: height,
+            mipmapped: false)
+        let grayscaleTex = device.makeTexture(descriptor: descriptor)
+        let image:[Float] = [
+            1, 2, 3, 4,
+            5, 6, 7, 8,
+            9, 10, 11, 12
+        ]
+        grayscaleTex.replace(region: MTLRegionMake2D(0,0,width,height), mipmapLevel: 0, withBytes: image, bytesPerRow: width*4)
+
+        let square_descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: MTLPixelFormat.r32Float,
+            width: width,
+            height: height,
+            mipmapped: false)
+        square_descriptor.usage = [.shaderWrite]
+        let squareTex = device.makeTexture(descriptor: square_descriptor)
+        let commandBuffer = commandQueue.makeCommandBuffer()
+        simple_square.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: grayscaleTex, destinationTexture: squareTex)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        //5. logging
+        let gray_array = texture_to_array(texture: grayscaleTex)
+        print("gray_array: ")
+        display(img: gray_array, width: width, height: height)
+
+        let square_array = texture_to_array(texture: squareTex)
+        print("square_array: ")
+        display(img: square_array, width: width, height: height)
+    }
+
+    func test_square_integral(){
+        let width: Int = 4
+        let height: Int = 3
+
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: MTLPixelFormat.r32Float,
+            width: width,
+            height: height,
+            mipmapped: false)
+        descriptor.usage = [.shaderRead]
+        let grayscaleTex = device.makeTexture(descriptor: descriptor)
+        let image:[Float] = [
+            1, 2, 3, 4,
+            5, 6, 7, 8,
+            9, 10, 11, 12
+        ]
+        grayscaleTex.replace(region: MTLRegionMake2D(0,0,width,height), mipmapLevel: 0, withBytes: image, bytesPerRow: width*4)
+
+        let output_descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: MTLPixelFormat.r32Float,
+            width: width,
+            height: height,
+            mipmapped: false)
+        output_descriptor.usage = [.shaderWrite]
+        let outputTex = device.makeTexture(descriptor: output_descriptor)
+        let commandBuffer = commandQueue.makeCommandBuffer()
+        let ii = IntegralImage(device: device, library: library, width: width, height: height, inclusive: true)
+        ii.encode_square(commandBuffer, sourceTexture: grayscaleTex, destinationTexture: outputTex)
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        //5. logging
+        let gray_array = texture_to_array(texture: grayscaleTex)
+        print("gray_array: ")
+        display(img: gray_array, width: width, height: height)
+
+        let ii_integral_square = texture_to_array(texture: outputTex)
+        print("ii_integral_square: ")
+        display(img: ii_integral_square, width: width, height: height)
+    }
+
     func testSmallTextureSum() -> Bool {
         print("[test-class] testSmallTextureSum")
 
@@ -33,7 +113,7 @@ class TestClass {
         let sum = TestClass.getBufferForFloat(device: device)
 
         let commandBuffer = commandQueue.makeCommandBuffer()
-        ii.encodeToCommandBuffer(commandBuffer, sourceTexture: input, destinationTexture: output)
+        ii.encode(commandBuffer, sourceTexture: input, destinationTexture: output)
         ii.getBoxIntegral(commandBuffer, integralImage: output, row: 0, col: 0, rows: n, cols: n, output: sum)
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
@@ -53,7 +133,7 @@ class TestClass {
         let (ii, _, output) = createTestSetup(width, height)
 
         let commandBuffer = commandQueue.makeCommandBuffer()
-        ii.encodeToCommandBuffer(commandBuffer, sourceTexture: input, destinationTexture: output)
+        ii.encode(commandBuffer, sourceTexture: input, destinationTexture: output)
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
 
@@ -70,7 +150,7 @@ class TestClass {
         let (ii, _, output) = createTestSetup(width, height)
 
         let commandBuffer = commandQueue.makeCommandBuffer()
-        ii.encodeToCommandBuffer(commandBuffer, sourceTexture: input, destinationTexture: output)
+        ii.encode(commandBuffer, sourceTexture: input, destinationTexture: output)
         commandBuffer.commit()
         commandBuffer.waitUntilCompleted()
 
@@ -93,7 +173,7 @@ class TestClass {
         var elapsedGPU : UInt64 = 0
         for _ in 0..<n {
             let commandBuffer = commandQueue.makeCommandBuffer()
-            ii.encodeToCommandBuffer(commandBuffer, sourceTexture: input, destinationTexture: output)
+            ii.encode(commandBuffer, sourceTexture: input, destinationTexture: output)
             let _t1 = mach_absolute_time()
             commandBuffer.commit()
             commandBuffer.waitUntilCompleted()
@@ -120,7 +200,7 @@ class TestClass {
         var elapsedGPU : UInt64 = 0
         for _ in 0..<n {
             let commandBuffer = commandQueue.makeCommandBuffer()
-            ii.encodeToCommandBuffer(commandBuffer, sourceTexture: input, destinationTexture: output)
+            ii.encode(commandBuffer, sourceTexture: input, destinationTexture: output)
             let _t1 = mach_absolute_time()
             commandBuffer.commit()
             commandBuffer.waitUntilCompleted()
@@ -196,8 +276,6 @@ class TestClass {
 
     class func createTexture(device: MTLDevice, format: MTLPixelFormat, width: Int, height: Int, bytes: [Float]) -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
-//        descriptor.resourceOptions = MTLResourceOptions.storageModeShared
-//        descriptor.storageMode = MTLStorageMode.shared
         descriptor.usage = [.shaderRead,.shaderWrite]
         let t = device.makeTexture(descriptor: descriptor)
         t.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes, bytesPerRow: width*4)
@@ -222,5 +300,24 @@ class TestClass {
         var rtn : Float = -1.0
         data.getBytes(&rtn, length:MemoryLayout<Float>.size)
         return rtn
+    }
+
+    func texture_to_array(texture: MTLTexture) -> [Float] {
+        let bytesPerRow = texture.width*MemoryLayout<Float>.size
+        let region = MTLRegionMake2D(0, 0, texture.width, texture.height)
+        var vals = [Float](repeatElement(0.0, count: texture.width*texture.height))
+        texture.getBytes(&vals, bytesPerRow: bytesPerRow, from: region, mipmapLevel: 0)
+        return vals;
+    }
+
+    func display(img: [Float], width: Int, height: Int ) {
+        var result:String = ""
+        for y in 0...(height-1){
+            for x in 0...(width-1){
+                result +=  String(img[y * width + x]) + " "
+            }
+            result += "\n"
+        }
+        print("\(result)")
     }
 }

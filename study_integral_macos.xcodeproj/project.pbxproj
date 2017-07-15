@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		43763B7B1F17488400A18122 /* simple_square.metal in Sources */ = {isa = PBXBuildFile; fileRef = 43763B7A1F17488400A18122 /* simple_square.metal */; };
+		43763B7D1F174DF500A18122 /* simple_square.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43763B7C1F174DF500A18122 /* simple_square.swift */; };
 		43BE19641F1211B3004B101F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43BE19631F1211B3004B101F /* AppDelegate.swift */; };
 		43BE19661F1211B3004B101F /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43BE19651F1211B3004B101F /* ViewController.swift */; };
 		43BE19681F1211B3004B101F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43BE19671F1211B3004B101F /* Assets.xcassets */; };
@@ -19,6 +21,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		43763B7A1F17488400A18122 /* simple_square.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = simple_square.metal; sourceTree = "<group>"; };
+		43763B7C1F174DF500A18122 /* simple_square.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = simple_square.swift; sourceTree = "<group>"; };
 		43BE19601F1211B3004B101F /* study_integral_macos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = study_integral_macos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		43BE19631F1211B3004B101F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		43BE19651F1211B3004B101F /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -67,6 +71,7 @@
 				43BE19631F1211B3004B101F /* AppDelegate.swift */,
 				43BE19651F1211B3004B101F /* ViewController.swift */,
 				43BE19731F121755004B101F /* simple_transpose.swift */,
+				43763B7C1F174DF500A18122 /* simple_square.swift */,
 				43BE197A1F1217A6004B101F /* simple_integral.swift */,
 				43BE19671F1211B3004B101F /* Assets.xcassets */,
 				43BE19691F1211B3004B101F /* Main.storyboard */,
@@ -82,6 +87,7 @@
 			children = (
 				43BE19751F121767004B101F /* simple_transpose.metal */,
 				43BE19781F12178C004B101F /* simple_integral.metal */,
+				43763B7A1F17488400A18122 /* simple_square.metal */,
 			);
 			path = shaders;
 			sourceTree = "<group>";
@@ -162,6 +168,8 @@
 				43BE19761F121767004B101F /* simple_transpose.metal in Sources */,
 				43BE19791F12178C004B101F /* simple_integral.metal in Sources */,
 				43BE197B1F1217A6004B101F /* simple_integral.swift in Sources */,
+				43763B7B1F17488400A18122 /* simple_square.metal in Sources */,
+				43763B7D1F174DF500A18122 /* simple_square.swift in Sources */,
 				43BE197D1F121899004B101F /* test_class.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -331,6 +339,7 @@
 				43BE19721F1211B3004B101F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

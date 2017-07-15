@@ -68,20 +68,72 @@ class IntegralImage {
         createIntermediaryTextures()
     }
 
-    // Convenience function
+    /* Convenience function*/
     func setInclusive(inclusive: Bool) {
         self.inclusive = inclusive
     }
 
-    // Sets the pipelines for encoding
-    func setupPipelines() {
+    func encode_square(_ commandBuffer: MTLCommandBuffer,
+                       sourceTexture: MTLTexture,
+                       destinationTexture: MTLTexture){
+        let square_descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: MTLPixelFormat.r32Float,
+            width: sourceTexture.width,
+            height: sourceTexture.height,
+            mipmapped: false)
+        square_descriptor.usage = [.shaderRead,.shaderWrite]
+        let squareTex = device.makeTexture(descriptor: square_descriptor)
+        simple_square.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: sourceTexture, destinationTexture: squareTex)
+        encode(commandBuffer, sourceTexture: squareTex, destinationTexture: destinationTexture)
+    }
+
+    /* Encodes the calculation of the integral image of sourceTexture to the commandBuffer, resulting in the integral image in destinationTexture*/
+    func encode(_ commandBuffer: MTLCommandBuffer,
+                sourceTexture: MTLTexture,
+                destinationTexture: MTLTexture) {
+
+        // We need a grayscale texture in any case
+        assert(sourceTexture.pixelFormat == MTLPixelFormat.r32Float, "Source texture must be a grayscale r32Float texture")
+
+        // Check whether the dimensions are the same
+        assert(sourceTexture.width == destinationTexture.width, "Source texture must be the same size as destination texture")
+
+        // Check whether the dimensions are the same
+        assert(sourceTexture.height == destinationTexture.height, "Source texture must be the same size as destination texture")
+
+        // We need at least two rows, otherwise we could get mixed up with our dummy auxiliary array
+        assert(sourceTexture.height > 1, "Source texture must be at least of height 2")
+
+        // We use a fixed blockSize of 64 and only one auxiliary array which is scanned only once,
+        // hence this last scan pass of the aux array must fit into a single block
+        assert(sourceTexture.height <= Int(pow(Float(blockSize), 2.0)) && sourceTexture.width <= Int(pow(Float(blockSize), 2.0)))
+
+        // Check whether width and height are still valid and recreate intermediary textures if necessary
+        if (sourceTexture.width != width || sourceTexture.height != height) {
+            createIntermediaryTextures()
+        }
+
+        self.encodeScan(commandBuffer: commandBuffer, input: sourceTexture, aux: aux, output: intermediary)
+        self.encodeScan(commandBuffer: commandBuffer, input: aux, aux: nil, output: auxScanned)
+        self.encodeFixup(commandBuffer: commandBuffer, input: intermediary, aux: auxScanned, output: out)
+
+        simple_transpose.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: out, destinationTexture: input_t)
+
+        self.encodeScan(commandBuffer: commandBuffer, input: input_t, aux: aux_t, output: intermediary_t)
+        self.encodeScan(commandBuffer: commandBuffer, input: aux_t, aux: nil, output: auxScanned_t)
+        self.encodeFixup(commandBuffer: commandBuffer, input: intermediary_t, aux: auxScanned_t, output: out_t)
+        simple_transpose.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: out_t, destinationTexture: destinationTexture)
+    }
+
+    /* Sets the pipelines for encoding*/
+    private func setupPipelines() {
         scanPipeline = self.getPipeline(kernel: "ii_scan")
         fixupPipeline = self.getPipeline(kernel: "ii_fixup")
         boxintegralPipeline = self.getPipeline(kernel: "ii_boxintegral")
     }
 
-    // Creates all necessary intermediary textures
-    func createIntermediaryTextures() {
+    /* Creates all necessary intermediary textures*/
+    private func createIntermediaryTextures() {
 
         let auxBlockSize = width % self.blockSize == 0 ? max(width/self.blockSize,1) : width/self.blockSize+1
         let auxTBlockSize = height % self.blockSize == 0 ? max(height/self.blockSize,1) : height/self.blockSize+1
@@ -99,8 +151,7 @@ class IntegralImage {
         out_t = self.createIntermediaryTexture(format: .r32Float, width: height, height: width)
     }
 
-    // Encodes a scan pass, i.e. scan sums within blocks
-    // if aux is nil, we use a dummy aux texture with width and height 1
+    /* Encodes a scan pass, i.e. scan sums within blocks. if aux is nil, we use a dummy aux texture with width and height 1*/
     private func encodeScan(commandBuffer: MTLCommandBuffer, input: MTLTexture, aux: MTLTexture?, output: MTLTexture) {
 
         // Get the total number of blocks
@@ -139,7 +190,7 @@ class IntegralImage {
         enc.endEncoding()
     }
 
-    // Encodes the pass that writes auxiliary sums to the rows
+    /* Encodes the pass that writes auxiliary sums to the rows*/
     private func encodeFixup(commandBuffer: MTLCommandBuffer, input: MTLTexture, aux: MTLTexture, output: MTLTexture) {
         let blocks = input.width % blockSize == 0 ? max(input.width/blockSize,1) : input.width/blockSize+1
         let scanBlock = MTLSizeMake(blockSize, 1, 1)
@@ -155,49 +206,7 @@ class IntegralImage {
         enc.endEncoding()
     }
 
-
-    // Encodes the calculation of the integral image of sourceTexture to the commandBuffer, resulting
-    // in the integral image in destinationTexture
-    func encodeToCommandBuffer(_ commandBuffer: MTLCommandBuffer,
-                               sourceTexture: MTLTexture,
-                               destinationTexture: MTLTexture) {
-
-        // We need a grayscale texture in any case
-        assert(sourceTexture.pixelFormat == MTLPixelFormat.r32Float, "Source texture must be a grayscale r32Float texture")
-
-        // Check whether the dimensions are the same
-        assert(sourceTexture.width == destinationTexture.width, "Source texture must be the same size as destination texture")
-
-        // Check whether the dimensions are the same
-        assert(sourceTexture.height == destinationTexture.height, "Source texture must be the same size as destination texture")
-
-        // We need at least two rows, otherwise we could get mixed up with our dummy auxiliary array
-        assert(sourceTexture.height > 1, "Source texture must be at least of height 2")
-
-        // We use a fixed blockSize of 64 and only one auxiliary array which is scanned only once,
-        // hence this last scan pass of the aux array must fit into a single block
-        assert(sourceTexture.height <= Int(pow(Float(blockSize), 2.0)) && sourceTexture.width <= Int(pow(Float(blockSize), 2.0)))
-
-        // Check whether width and height are still valid and recreate intermediary textures if necessary
-        if (sourceTexture.width != width || sourceTexture.height != height) {
-            createIntermediaryTextures()
-        }
-
-        self.encodeScan(commandBuffer: commandBuffer, input: sourceTexture, aux: aux, output: intermediary)
-        self.encodeScan(commandBuffer: commandBuffer, input: aux, aux: nil, output: auxScanned)
-        self.encodeFixup(commandBuffer: commandBuffer, input: intermediary, aux: auxScanned, output: out)
-
-        simple_transpose.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: out, destinationTexture: input_t)
-        //        self.transposePass.encode(to: commandBuffer, sourceTexture: out, destinationTexture: input_t)
-
-        self.encodeScan(commandBuffer: commandBuffer, input: input_t, aux: aux_t, output: intermediary_t)
-        self.encodeScan(commandBuffer: commandBuffer, input: aux_t, aux: nil, output: auxScanned_t)
-        self.encodeFixup(commandBuffer: commandBuffer, input: intermediary_t, aux: auxScanned_t, output: out_t)
-        simple_transpose.process(device: device, library: library, commandBuffer: commandBuffer, sourceTexture: out_t, destinationTexture: destinationTexture)
-        //        self.transposePass.encode(to: commandBuffer, sourceTexture: out_t, destinationTexture: destinationTexture)
-    }
-
-    // Convenience function for testing
+    /* Convenience function for testing*/
     func getBoxIntegral(_ commandBuffer: MTLCommandBuffer, integralImage: MTLTexture, row: Int, col: Int, rows: Int, cols: Int, output: MTLBuffer) {
         let enc = commandBuffer.makeComputeCommandEncoder()
         enc.setComputePipelineState(boxintegralPipeline)
@@ -211,18 +220,14 @@ class IntegralImage {
         enc.endEncoding()
     }
 
-    // Helper functions
-
-    // Creates a MTLTexture from arguments
+    /* Creates a MTLTexture from arguments*/
     private func createIntermediaryTexture(format: MTLPixelFormat, width: Int, height: Int) -> MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height, mipmapped: false)
-//        descriptor.resourceOptions = MTLResourceOptions.storageModeShared
-//        descriptor.storageMode = MTLStorageMode.shared
         descriptor.usage = [.shaderRead,.shaderWrite]
         return device.makeTexture(descriptor: descriptor)
     }
 
-    // Creates a compute pipeline from a kernel name
+    /* Creates a compute pipeline from a kernel name*/
     private func getPipeline(kernel: String) -> MTLComputePipelineState {
         let kernelFunction = library.makeFunction(name: kernel)
         do {
@@ -234,7 +239,7 @@ class IntegralImage {
         }
     }
 
-    // Returns a buffer from an integer
+    /* Returns a buffer from an integer*/
     private func getBufferFromInt(_ val: Int) -> MTLBuffer {
         var _v = val
         return device.makeBuffer(bytes: &_v, length: MemoryLayout<Int>.size, options: .storageModeShared)

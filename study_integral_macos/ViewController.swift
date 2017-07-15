@@ -15,12 +15,16 @@ class ViewController: NSViewController {
         super.viewDidLoad()
 
         let tests = TestClass()
-        assert(tests.testSmallTextureSum() == true)
-        assert(tests.compareImplAgainstMPSWithBounds() == true)
-        assert(tests.compareImplAgainstMPS() == true)
-        assert(tests.testTimes720p() == true)
-        assert(tests.testTimes1080p() == true)
-        print("Tests Completed")
+
+//        tests.test_square()
+        tests.test_square_integral()
+        
+//        assert(tests.testSmallTextureSum() == true)
+//        assert(tests.compareImplAgainstMPSWithBounds() == true)
+//        assert(tests.compareImplAgainstMPS() == true)
+//        assert(tests.testTimes720p() == true)
+//        assert(tests.testTimes1080p() == true)
+//        print("Tests Completed")
 
         NSApp.terminate(nil)
     }
